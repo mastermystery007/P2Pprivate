@@ -19,21 +19,69 @@
 #include <errno.h>
 #include <unordered_map>
 #include <queue>
-#define SERVER_PORT 8080
+
 using namespace std;
 
-bool KEEP_LISTENING;
+
 string trackerip = "127.0.0.1";
 int tracker_port;
 string self_ip="127.0.0.1";
-string my_port;
+
 int MY_PORT;
+int SERVER_PORT;
 string self_gid;
 string self_cid;
+void *readAndwrite(void* new_socket_passed);
+
+
+void *readAndwrite(void* new_socket_passed)
+{
+    char buffer[1024] = {0};
+    int bytes_read;
+    int bytes_received;
+    int *temp = (int *)new_socket_passed;
+    int new_socket = *temp;
+    int valread;
+    char *ACK = "SERVER ACK ";
+      while(1)
+    {
+        //receive a message from the client (listen)
+        cout << "Awaiting response from "<<new_socket << endl;
+        
+        memset(&buffer, 0, sizeof(buffer));//clear the buffer
+        bytes_read += recv(new_socket, (char*)&buffer, sizeof(buffer), 0);
+        if(!strcmp(buffer, "exit"))
+        {
+            cout << "Client has quit the session " << endl;
+            break;
+        }
+        printf("Getting data from %d \n",new_socket);
+        cout << "Client: " << buffer << endl;
+        cout << ">";
+        string data;
+        getline(cin, data);
+        memset(&buffer, 0, sizeof(buffer)); //clear the buffer
+        strcpy(buffer, data.c_str());
+        if(data == "exit")
+        {
+            //send to the client that server has closed the connection
+            printf("Sending data to %d \n",new_socket);
+            send(new_socket, (char*)&buffer, strlen(buffer), 0);
+            break;
+        }
+        //send the message to client
+        printf("Sending data to %d \n",new_socket);
+        bytes_received += send(new_socket, (char*)&buffer, strlen(buffer), 0);
+    }
+        printf("Exiting the loop ");
+        return NULL;
+}
 
 
 void* clientAsServer(void* arg)
 {
+    bool KEEP_LISTENING;
+    KEEP_LISTENING = true;
     int server_fd;
     while(KEEP_LISTENING)
     {
@@ -49,6 +97,11 @@ void* clientAsServer(void* arg)
         {
             perror("socket failed");
             exit(EXIT_FAILURE);
+        }
+        else
+        {
+            printf("socket made .server_fd value is %d \n",server_fd);
+            
         }
 
         // Forcefully attaching socket to the port 8080
@@ -68,24 +121,39 @@ void* clientAsServer(void* arg)
             perror("bind failed");
             exit(EXIT_FAILURE);
         }
+        else
+        {
+              printf("Bind success on port %d \n",MY_PORT);
+        }
         if (listen(server_fd, 3) < 0)
         {
             perror("listen");
             exit(EXIT_FAILURE);
         }
 
-        while(1)
+       
+        while (1)
         {
         if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
-                        (socklen_t*)&addrlen))<0)
+                                 (socklen_t *)&addrlen)) < 0)
         {
             perror("accept");
             exit(EXIT_FAILURE);
         }
-        //pthread_create(&thread_id, NULL, parseInput, (void *)&new_socket);
-
+        else
+        {
+           printf("Accepting thread with new_socket val as %d \n",new_socket);
+           pthread_t thread_id;
+           pthread_create(&thread_id, NULL, readAndwrite, (void *)&new_socket);
+        }
+        
+        
         
         }
+
+
+
+
     }
     close(server_fd);
     return NULL;
@@ -97,11 +165,15 @@ void* clientAsServer(void* arg)
 int main(int argc, char const *argv[])
 {
     int sock = 0, valread; 
+    bool continueL = true;
+    string my_port = argv[1];
+    MY_PORT = atoi(argv[1]);
+    SERVER_PORT = atoi(argv[2]);
+    char sending_buffer[1500];
+    char receiving_buffer[1500];
+   
 
-    my_port = argv[1];
-    MY_PORT = stoi(my_port);
-
-    KEEP_LISTENING = true;
+    
     
     pthread_t listenerThreadid;
     pthread_create(&listenerThreadid, NULL,clientAsServer,NULL);
@@ -109,17 +181,23 @@ int main(int argc, char const *argv[])
 
     
     struct sockaddr_in serv_addr; 
-    char *hello = "Hello from client"; 
+    bzero((char*)&serv_addr, sizeof(serv_addr)); 
+    
     char buffer[1024] = {0}; 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
     { 
         printf("\n Socket creation error \n"); 
         return -1; 
     } 
+    else
+    {
+        printf("\n Socket successfully created with value %d \n",sock); 
+    }
    
     serv_addr.sin_family = AF_INET; 
     serv_addr.sin_port = htons(SERVER_PORT); 
-       
+
+
     // Convert IPv4 and IPv6 addresses from text to binary form 
     if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0)  
     { 
@@ -132,9 +210,46 @@ int main(int argc, char const *argv[])
         printf("\nConnection Failed \n"); 
         return -1; 
     } 
-    send(sock , hello , strlen(hello) , 0 ); 
-    printf("Hello message sent\n"); 
-    valread = read( sock , buffer, 1024); 
-    printf("%s\n",buffer ); 
+    else
+    {
+       printf("\nConnection Established \n");  
+    }
+
+
+
+
+    while(1)
+    {
+       
+        
+        string inputToSend;
+        int bytesRead = 0;
+        int bytesWritten = 0;
+        cout<<"Enter the input to send to server ";
+        getline(cin, inputToSend);
+        
+        
+        memset(&sending_buffer, 0, sizeof(sending_buffer));//clear the buffer
+        strcpy(sending_buffer, inputToSend.c_str());
+        if(inputToSend == "exit")
+        {
+            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
+            break;
+        }
+        cout << "Sending to "<<sock << endl;
+        bytesWritten += send(sock, (char*)&sending_buffer, strlen(sending_buffer), 0);
+        cout << "Awaiting response from "<<sock << endl;
+        memset(&receiving_buffer, 0, sizeof(receiving_buffer));//clear the buffer
+        bytesRead += recv(sock, (char*)&receiving_buffer, sizeof(receiving_buffer), 0);
+        cout << "Got response from "<<sock << endl;
+        if(!strcmp(receiving_buffer, "exit"))
+        {
+            cout << "Server has quit the session" << endl;
+            break;
+        }
+        cout << "Server: " << receiving_buffer << endl;
+    }
+
     return 0; 
 }
+

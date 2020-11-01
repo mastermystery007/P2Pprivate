@@ -1,98 +1,146 @@
+// Server side C/C++ program to demonstrate Socket programming
+#include <unistd.h>
+#include <openssl/sha.h>
+#include <stdio.h>
+#include <cmath>
+#include <iostream>
+#include <fstream>
+#include <sys/socket.h>
 
-// Server side C/C++ program to demonstrate Socket programming 
-#include <unistd.h> 
-#include <stdio.h> 
-#include <sys/socket.h> 
-#include <stdlib.h> 
-#include <netinet/in.h> 
-#include <string.h> 
-#define PORT 8080
-#define BUFSIZE 1024 
-#define PATH_MAX 200
-void handle_connection(int client_socket)
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <string>
+#include <unordered_map>
+#include <arpa/inet.h>
+#include <list>
+
+#define TPORT 8080
+typedef unsigned long long int ulli;
+using namespace std;
+
+void *readAndwrite(void* new_socket_passed);
+
+
+void *readAndwrite(void* new_socket_passed)
 {
-    char buffer[BUFSIZE];
-    size_t bytes_read;
-    int msgsize = 0;
-    char actual_path[PATH_MAX+1];
-
-    while((bytes_read = read(client_socket,buffer+msgsize,sizeof(buffer)-msgsize-1)) >0)
+    char readbuffer[1024] = {0};
+    char writebuffer[1024] = {0};
+    int bytes_read;
+    int bytes_written;
+    int *temp = (int *)new_socket_passed;
+    int new_socket = *temp;
+    int valread;
+    char *ACK = "SERVER ACK ";
+      while(1)
     {
-        msgsize=msgsize+bytes_read;
-        if(msgsize>BUFSIZE-1 ||buffer[msgsize-1]=='\n')
-        break;
+        //receive a message from the client (listen)
+        cout << "Awaiting  response from "<<new_socket<< endl;
+        memset(&readbuffer, 0, sizeof(readbuffer));//clear the buffer
+        bytes_read += recv(new_socket, (char*)&readbuffer, sizeof(readbuffer), 0);
+        if(!strcmp(readbuffer, "exit"))
+        {
+            cout << "Client has quit the session " << endl;
+            break;
+        }
+        cout << "Client: " << readbuffer << endl;
+        cout << ">";
+        string data;
+        getline(cin, data);
+        memset(&writebuffer, 0, sizeof(writebuffer)); //clear the buffer
+        strcpy(writebuffer, data.c_str());
+        if(data == "exit")
+        {
+            //send to the client that server has closed the connection
+            printf("Sending data to %d \n",new_socket);
+            send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
+            break;
+        }
+        //send the message to client
+        printf("Sending data to %d \n",new_socket);
+        bytes_written += send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
     }
-
-    printf("request ",buffer,"\n");
-    fflush(stdout);
+        printf("Exiting the loop ");
+        return NULL;
 }
-void create_connection()
+void check(int success)
 {
-    int server_fd, new_socket, valread; 
-    struct sockaddr_in address; 
-    int opt = 1; 
-    int addrlen = sizeof(address); 
-    char buffer[1024] = {0}; 
-    char *hello = "Hello from server"; 
-       
-    // STREAM SOCKET  = TCP 
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) 
-    { 
-        perror("socket failed"); 
-        exit(EXIT_FAILURE); 
-    } else{printf("Socket created");}
-       
-    // Forcefully attaching socket to the port 8080 
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, 
-                                                  &opt, sizeof(opt))) 
-    { 
-        perror("setsockopt"); 
-        exit(EXIT_FAILURE); 
-    } 
-    address.sin_family = AF_INET; 
-    address.sin_addr.s_addr = INADDR_ANY; 
-    address.sin_port = htons( PORT ); 
-       
-    // Forcefully attaching socket to the port 8080 
-    if (bind(server_fd, (struct sockaddr *)&address,  
-                                 sizeof(address))<0) 
-    { 
-        perror("bind failed"); 
-        exit(EXIT_FAILURE); 
-    } 
-    else{printf("Binding done");}
-    if (listen(server_fd, 3) < 0) 
-    { 
-        perror("listen"); 
+   if(success==0)
+   {
+
+   }
+   else
+   {
+
+   }
+}
+
+int main(int argc, char const *argv[])
+{
+    
+    int server_fd, new_socket, valread;
+    char *ACK = "SERVER ACK ";
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    char buffer[1024] = {0};
+    
+    // Creating socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+    {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }else{printf("Created socket with id %d \n",server_fd);}
+
+    // Forcefully attaching socket to the port 8080
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+                   &opt, sizeof(opt)))
+    {
+        perror("setsockopt");
         exit(EXIT_FAILURE);
     }
-    else
-    {    
-        
-        while(1)
-        {
-            printf("Waiting for connection ");
-            if ((new_socket = accept(server_fd, (struct sockaddr *)&address,(socklen_t*)&addrlen))<0) 
-            { 
-            perror("accept"); 
-            exit(EXIT_FAILURE); 
-            }
-            else
-            {
-            //valread = read( new_socket , buffer, 1024); 
-            printf("%s\n",buffer ); 
-            //send(new_socket , hello , strlen(hello) , 0 );
-            handle_connection(new_socket); 
-            printf("Hello message sent\n");
-            } 
-        }
-    }
-}
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(TPORT);
 
-int main(int argc, char const *argv[]) 
-{ 
-    create_connection();
-          return 0; 
-    } 
-   
-   
+    // Forcefully attaching socket to the port 8080
+    if (bind(server_fd, (struct sockaddr *)&address,
+             sizeof(address)) < 0)
+    {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+    if (listen(server_fd, 3) < 0)
+    {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    while (1)
+    {
+        if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
+                                 (socklen_t *)&addrlen)) < 0)
+        {
+            perror("accept");
+            exit(EXIT_FAILURE);
+        }
+        else
+        {
+           printf("Accepting thread with id %d \n",new_socket);
+           pthread_t thread_id;
+           pthread_create(&thread_id, NULL, readAndwrite, (void *)&new_socket);
+        }
+        
+        
+        
+    }
+    return 0;
+}
