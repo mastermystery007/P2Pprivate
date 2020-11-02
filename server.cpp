@@ -6,7 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <sys/socket.h>
-
+#include <bits/stdc++.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -24,11 +24,134 @@
 #include <list>
 
 #define TPORT 8080
-typedef unsigned long long int ulli;
+
 using namespace std;
 
-void *readAndwrite(void* new_socket_passed);
+class UserInfo
+{
+public:
+	string  username;
+	string  password;
+	string ip;
+	string port;
+};
 
+class fileinfo
+{
+public:
+	string sha1;
+	int size;
+    string location;
+};
+
+
+unordered_map<string, string> user_password;
+void *readAndwrite(void* new_socket_passed);
+vector<string> extecuteCommands(vector<string> commands );
+
+
+
+vector<string> convertStringToCommands(string bufferString)
+{
+    vector<string> commands;
+    
+    string tempcommand = "";
+    
+       for (int i= 0; i<bufferString.size();i++)
+       {
+           
+           if(isspace(bufferString[i]))
+           {
+               commands.push_back(tempcommand);
+               tempcommand="";
+           }
+           else
+           {
+               tempcommand+=bufferString[i];
+           }
+       }
+       commands.push_back(tempcommand);
+       
+
+
+       
+       return commands;
+       
+}
+vector<string> extecuteCommands(vector<string> commands )
+{   
+        vector<string> responseV ; 
+    
+
+       for(int i=0;i<commands.size();i++)
+       {
+           for(int j=0;j<commands[i].size();j++)
+           {
+               if(isspace(commands[i][j])){cout<<"j = "<<j;}
+           }
+           cout<<"commands are ";
+           cout<<commands[i]<<"\n";
+       }
+    
+    
+    char writebuffer[1024] = {0};
+    int bytes_written;
+    
+    if(commands[0]=="create_user")
+    {
+       
+            
+            string response_string = "created user";
+            responseV.push_back(response_string);
+            cout<<"responseV is "<<responseV[0];
+            return responseV ;
+            
+        //send the message to client
+          
+            
+        
+
+    }
+
+    if(commands[0]=="upload_file")
+    {
+
+    }
+    if(commands[0]=="download_file")
+    {
+        
+        ifstream  inFile("text.txt");
+        
+        /*if(!fd)
+        {
+            perror("Error in opening file");
+        }  */
+        string lineFromFile;
+
+        while( !inFile.eof() )
+        {       
+        getline( inFile, lineFromFile );
+        cout<<lineFromFile<<endl;
+    //process the line
+        }
+        string response_string = "created user";
+        responseV.push_back(response_string);
+        cout<<"responseV is "<<responseV[0];
+        return responseV ;
+
+    }
+
+    if(commands[0]=="login"){;}
+    if(commands[0]=="create_group"){;}
+    if(commands[0]=="join_group"){;}
+    if(commands[0]=="requests"){;}
+    if(commands[0]=="accept_request"){;}
+    
+    
+   // if(commands[0]=="logout"){;}
+    if(commands[0]=="show_downloads"){;}
+   
+}
 
 void *readAndwrite(void* new_socket_passed)
 {
@@ -40,6 +163,10 @@ void *readAndwrite(void* new_socket_passed)
     int new_socket = *temp;
     int valread;
     char *ACK = "SERVER ACK ";
+    vector<string> commands;
+    vector<string> responses;
+    
+    
       while(1)
     {
         //receive a message from the client (listen)
@@ -51,13 +178,29 @@ void *readAndwrite(void* new_socket_passed)
             cout << "Client has quit the session " << endl;
             break;
         }
+        /*
+        DO ALL STRING COMPARISIONS OVER HERE
+        */
         cout << "Client: " << readbuffer << endl;
         cout << ">";
-        string data;
-        getline(cin, data);
+
+       string bufferString(readbuffer);
+       commands = convertStringToCommands(bufferString);
+       responses = extecuteCommands(commands);
+       
+       string response_string ="";
+       for(int k=0;k<responses.size();k++)
+       {
+           cout<<"response is "<<endl;
+           response_string+=responses[k];
+           cout<<responses[k];
+       }
+        
+        
+       
         memset(&writebuffer, 0, sizeof(writebuffer)); //clear the buffer
-        strcpy(writebuffer, data.c_str());
-        if(data == "exit")
+        strcpy(writebuffer, response_string.c_str());
+        if(response_string == "exit")
         {
             //send to the client that server has closed the connection
             printf("Sending data to %d \n",new_socket);
@@ -67,6 +210,7 @@ void *readAndwrite(void* new_socket_passed)
         //send the message to client
         printf("Sending data to %d \n",new_socket);
         bytes_written += send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
+        
     }
         printf("Exiting the loop ");
         return NULL;

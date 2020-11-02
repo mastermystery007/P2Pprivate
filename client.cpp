@@ -159,6 +159,28 @@ void* clientAsServer(void* arg)
     return NULL;
 
 }
+vector<string> breakInput(string input)
+{
+    vector<string> commands;
+    
+    string tempcommand = "";
+    
+       for (int i= 0; i<input.size();i++)
+       {
+           
+           if(isspace(input[i]))
+           {
+               commands.push_back(tempcommand);
+               tempcommand="";
+           }
+           else
+           {
+            tempcommand+=input[i];
+           }
+       }
+       commands.push_back(tempcommand);
+       return commands;
+}
 
 
 
@@ -227,17 +249,51 @@ int main(int argc, char const *argv[])
         int bytesWritten = 0;
         cout<<"Enter the input to send to server ";
         getline(cin, inputToSend);
-        
+        vector<string> commands;
+        commands = breakInput(inputToSend);
+
+
+        for(int i =0 ;i<commands.size();i++)
+        {   cout<<"commands are: ";
+            cout<<commands[i]<<endl;
+        }
         
         memset(&sending_buffer, 0, sizeof(sending_buffer));//clear the buffer
         strcpy(sending_buffer, inputToSend.c_str());
-        if(inputToSend == "exit")
+        if(commands[0] == "create_user")
         {
             send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
-            break;
+            
         }
+
+        else if(commands[0] == "download_file")
+        {
+            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
+            
+        }
+        /*if(inputToSend == "download_file")
+        {
+            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
+            
+        }
+        if(inputToSend == "upload_file")
+        {
+            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
+            
+        }
+        if(inputToSend == "create_user")
+        {
+            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
+            
+        }
+        if(inputToSend == "log_in")
+        {
+            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
+            
+        }
+        
         cout << "Sending to "<<sock << endl;
-        bytesWritten += send(sock, (char*)&sending_buffer, strlen(sending_buffer), 0);
+        bytesWritten += send(sock, (char*)&sending_buffer, strlen(sending_buffer), 0);*/
         cout << "Awaiting response from "<<sock << endl;
         memset(&receiving_buffer, 0, sizeof(receiving_buffer));//clear the buffer
         bytesRead += recv(sock, (char*)&receiving_buffer, sizeof(receiving_buffer), 0);

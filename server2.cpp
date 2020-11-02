@@ -27,15 +27,36 @@
 
 using namespace std;
 
+class UserInfo
+{
+public:
+	string  username;
+	string  password;
+	string ip;
+	int port;
+};
+
+class fileinfo
+{
+public:
+	string sha1;
+	int size;
+    string location;
+};
+
+
+unordered_map<string, string> user_password;
 void *readAndwrite(void* new_socket_passed);
-void extecuteCommands(vector<string> commands);
+void extecuteCommands(vector<string> commands , int new_socket);
 
-map <string,string> user_password;
 
-void convertStringToCommands(string bufferString)
+
+void convertStringToCommands(string bufferString,int socket)
 {
     vector<string> commands;
+    
     string tempcommand = "";
+    
        for (int i= 0; i<bufferString.size();i++)
        {
            tempcommand+=bufferString[i];
@@ -53,20 +74,28 @@ void convertStringToCommands(string bufferString)
        }
 
 
-       extecuteCommands(commands);
+       extecuteCommands(commands,socket);
        commands.clear();
+       
 }
-void extecuteCommands(vector<string> commands)
-{   
+void extecuteCommands(vector<string> commands , int new_socket )
+{   char writebuffer[1024] = {0};
+    int bytes_written;
+    
     if(commands[0]=="create_user")
     {
-        if(commands.size()==3)
-        {
+       
             string user = commands[1];
             string password = commands[2];
             user_password[user]=password;
-            response.push_back("ok");
-        }
+            string response_string = "good";
+            memset(&writebuffer, 0, sizeof(writebuffer)); //clear the buffer
+            strcpy(writebuffer, response_string.c_str());
+       
+        //send the message to client
+        printf("Sending data to %d \n",new_socket);
+        bytes_written += send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
+        
 
     }
     if(commands[0]=="login"){;}
@@ -92,7 +121,9 @@ void *readAndwrite(void* new_socket_passed)
     int valread;
     char *ACK = "SERVER ACK ";
     vector<string> commands;
-    vector<string> response;
+    vector<string> alphonso_responses;
+    
+    
       while(1)
     {
         //receive a message from the client (listen)
@@ -107,20 +138,23 @@ void *readAndwrite(void* new_socket_passed)
         /*
         DO ALL STRING COMPARISIONS OVER HERE
         */
-       
-       string bufferString(readbuffer);
-       convertStringToCommands(bufferString);
-       
-       
-       
-       
         cout << "Client: " << readbuffer << endl;
         cout << ">";
-        string data;
-        getline(cin, data);
+
+       string bufferString(readbuffer);
+       convertStringToCommands(bufferString,new_socket);
+       
+       cout<<"response is "<<endl;
+       for(int k=0;k<alphonso_responses.size();k++)
+       {
+           cout<<alphonso_responses[k];
+       }
+        
+        
+       /*
         memset(&writebuffer, 0, sizeof(writebuffer)); //clear the buffer
-        strcpy(writebuffer, data.c_str());
-        if(data == "exit")
+        strcpy(writebuffer, response_string.c_str());
+        if(response_string == "exit")
         {
             //send to the client that server has closed the connection
             printf("Sending data to %d \n",new_socket);
@@ -130,6 +164,7 @@ void *readAndwrite(void* new_socket_passed)
         //send the message to client
         printf("Sending data to %d \n",new_socket);
         bytes_written += send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
+        */
     }
         printf("Exiting the loop ");
         return NULL;
