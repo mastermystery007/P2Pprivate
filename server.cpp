@@ -24,10 +24,11 @@
 #include <list>
 
 #define TPORT 8080
+#define CHUNKSIZE 512
 
 using namespace std;
 
-class UserInfo
+class Trackeruserinfo
 {
 public:
 	string  username;
@@ -36,18 +37,19 @@ public:
 	string port;
 };
 
-class fileinfo
+class Trackerfileinfo
 {
 public:
-	string sha1;
+	vector<string> sha1;
 	int size;
-    string location;
+    int chunks;
+    string name;
 };
 
 
-unordered_map<string, string> user_password;
+//unordered_map<UserInfo, fileinfo> user_password;//check this
 void *readAndwrite(void* new_socket_passed);
-vector<string> extecuteCommands(vector<string> commands );
+vector<string> extecuteCommands(vector<string> commands,int sockfd);
 
 
 
@@ -70,28 +72,18 @@ vector<string> convertStringToCommands(string bufferString)
                tempcommand+=bufferString[i];
            }
        }
-       commands.push_back(tempcommand);
-       
-
-
-       
+       commands.push_back(tempcommand); 
        return commands;
        
 }
-vector<string> extecuteCommands(vector<string> commands )
-{   
-        vector<string> responseV ; 
-    
 
-       for(int i=0;i<commands.size();i++)
-       {
-           for(int j=0;j<commands[i].size();j++)
-           {
-               if(isspace(commands[i][j])){cout<<"j = "<<j;}
-           }
-           cout<<"commands are ";
-           cout<<commands[i]<<"\n";
-       }
+
+
+vector<string> extecuteCommands(vector<string> commands,int sockfd)
+{   
+    vector<string> responseV ; 
+        
+        
     
     
     char writebuffer[1024] = {0};
@@ -99,47 +91,90 @@ vector<string> extecuteCommands(vector<string> commands )
     
     if(commands[0]=="create_user")
     {
-       
-            
-            string response_string = "created user";
-            responseV.push_back(response_string);
-            cout<<"responseV is "<<responseV[0];
-            return responseV ;
-            
-        //send the message to client
-          
-            
-        
-
+        string response_string = "created user";
+        responseV.push_back(response_string);
+        cout<<"responseV is "<<responseV[0];
+        return responseV ; 
     }
 
     if(commands[0]=="upload_file")
     {
+        //receive the chunks
+        int finfochunks;
+        string finfoname = commands[1];
+        char data[100];
+        bzero(data,100);
 
+        Trackerfileinfo * finfo = new Trackerfileinfo();
+        
+        string ack1 = "okkkkkkkkkkkkkk";
+        strcpy(data, ack1.c_str());
+        cout<<"CP6"<<endl;
+        
+        send(sockfd, (char*)&data, strlen(data), 0);
+        string sendstr(data);
+        cout<<"sending.."<<sendstr<<endl;       
+       // finfo->chunks=finfochunks;
+        //finfo->name = finfoname;
+        //vector<string> tempsha(finfochunks);
+        memset(&data, 0, sizeof(data));//clear the buffer
+        cout<<"CP7"<<endl;
+        recv(sockfd, (char *)&data, sizeof(data), 0);
+        cout<<data;
+
+
+         string response_string = "File uploaded";
+        responseV.push_back(response_string);
+        return responseV ;
+       /* for(int i=0;i<finfochunks;i++)
+        {
+         //   tempsha.push_back(SHA1());
+         recv(sockfd, (char *)&data, sizeof(data), 0);
+         string shaval(data);
+         tempsha.push_back(shaval);
+        }*/
     }
     if(commands[0]=="download_file")
     {
+        string filename=commands[1];
+        char data[10];
+        bzero(data,10);
+     
         
-        ifstream  inFile("text.txt");
         
-        /*if(!fd)
+        
+        //GETTING SIZE OF FILE 
+        FILE *p_file = NULL;
+        p_file = fopen(filename.c_str(),"rb");
+        if(p_file == NULL)
         {
-            perror("Error in opening file");
-        }  */
-        string lineFromFile;
-
-        while( !inFile.eof() )
-        {       
-        getline( inFile, lineFromFile );
-        cout<<lineFromFile<<endl;
-    //process the line
+        printf("ERROR: File  not found.\n");
+        exit(1);
         }
-        string response_string = "created user";
+        
+        fseek(p_file,0,SEEK_END);
+        int size = ftell(p_file);
+        fclose(p_file);
+        cout<<"The size of the file is "<<size<<endl;
+        
+        
+        
+        //SENDING FILE AS A STREAM
+        ifstream  inFile(filename);
+        while (inFile.read (data, 10)) 
+        {
+        send(sockfd, (char*)&data, strlen(data), 0);
+        cout<<data;
+        } 
+        send(sockfd, (char*)&data, strlen(data), 0);
+        cout<<data;
+        inFile.close();
+        
+        string response_string = "File sent";
         responseV.push_back(response_string);
-        cout<<"responseV is "<<responseV[0];
         return responseV ;
 
-    }
+        }
 
     if(commands[0]=="login"){;}
     if(commands[0]=="create_group"){;}
@@ -172,45 +207,38 @@ void *readAndwrite(void* new_socket_passed)
         //receive a message from the client (listen)
         cout << "Awaiting  response from "<<new_socket<< endl;
         memset(&readbuffer, 0, sizeof(readbuffer));//clear the buffer
+        cout<<"CP5"<<endl;
         bytes_read += recv(new_socket, (char*)&readbuffer, sizeof(readbuffer), 0);
-        if(!strcmp(readbuffer, "exit"))
-        {
-            cout << "Client has quit the session " << endl;
-            break;
-        }
-        /*
-        DO ALL STRING COMPARISIONS OVER HERE
-        */
-        cout << "Client: " << readbuffer << endl;
-        cout << ">";
+        
+        if(!strcmp(readbuffer, "exit")){cout << "Client has quit the session " << endl;break; }
+        
+       
+        
 
        string bufferString(readbuffer);
+       cout<<"received :"<<bufferString<<endl;
        commands = convertStringToCommands(bufferString);
-       responses = extecuteCommands(commands);
+       responses = extecuteCommands(commands,new_socket);
        
        string response_string ="";
        for(int k=0;k<responses.size();k++)
-       {
-           cout<<"response is "<<endl;
-           response_string+=responses[k];
-           cout<<responses[k];
-       }
+        {
+            response_string+=responses[k];
+        }
         
         
        
         memset(&writebuffer, 0, sizeof(writebuffer)); //clear the buffer
         strcpy(writebuffer, response_string.c_str());
-        if(response_string == "exit")
-        {
-            //send to the client that server has closed the connection
-            printf("Sending data to %d \n",new_socket);
-            send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
-            break;
-        }
-        //send the message to client
-        printf("Sending data to %d \n",new_socket);
-        bytes_written += send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
+
+        if(response_string == "exit"){printf("Sending data to %d \n",new_socket);send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);break;}
         
+        printf("Sending data to %d \n",new_socket);
+        cout<<"CP9"<<endl;
+        bytes_written += send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
+        string send2str(writebuffer);
+        cout<<send2str<<"\n";
+
     }
         printf("Exiting the loop ");
         return NULL;

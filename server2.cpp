@@ -24,6 +24,7 @@
 #include <list>
 
 #define TPORT 8080
+#define CHUNKSIZE 512
 
 using namespace std;
 
@@ -33,7 +34,7 @@ public:
 	string  username;
 	string  password;
 	string ip;
-	int port;
+	string port;
 };
 
 class fileinfo
@@ -45,13 +46,13 @@ public:
 };
 
 
-unordered_map<string, string> user_password;
+//unordered_map<UserInfo, fileinfo> user_password;//check this
 void *readAndwrite(void* new_socket_passed);
-void extecuteCommands(vector<string> commands , int new_socket);
+vector<string> extecuteCommands(vector<string> commands,int sockfd);
 
 
 
-void convertStringToCommands(string bufferString,int socket)
+vector<string> convertStringToCommands(string bufferString)
 {
     vector<string> commands;
     
@@ -59,55 +60,98 @@ void convertStringToCommands(string bufferString,int socket)
     
        for (int i= 0; i<bufferString.size();i++)
        {
-           tempcommand+=bufferString[i];
+           
            if(isspace(bufferString[i]))
            {
                commands.push_back(tempcommand);
                tempcommand="";
            }
+           else
+           {
+               tempcommand+=bufferString[i];
+           }
        }
-       commands.push_back(tempcommand);
-
-       for(int i=0;i<commands.size();i++)
-       {
-           cout<<commands[i]<<"\n";
-       }
-
-
-       extecuteCommands(commands,socket);
-       commands.clear();
+       commands.push_back(tempcommand); 
+       return commands;
        
 }
-void extecuteCommands(vector<string> commands , int new_socket )
-{   char writebuffer[1024] = {0};
+
+
+
+vector<string> extecuteCommands(vector<string> commands,int sockfd)
+{   
+    vector<string> responseV ; 
+        
+        
+    
+    
+    char writebuffer[1024] = {0};
     int bytes_written;
     
     if(commands[0]=="create_user")
     {
-       
-            string user = commands[1];
-            string password = commands[2];
-            user_password[user]=password;
-            string response_string = "good";
-            memset(&writebuffer, 0, sizeof(writebuffer)); //clear the buffer
-            strcpy(writebuffer, response_string.c_str());
-       
-        //send the message to client
-        printf("Sending data to %d \n",new_socket);
-        bytes_written += send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
-        
+        string response_string = "created user";
+        responseV.push_back(response_string);
+        cout<<"responseV is "<<responseV[0];
+        return responseV ; 
+    }
+
+    if(commands[0]=="upload_file")
+    {
 
     }
+    if(commands[0]=="download_file")
+    {
+        string filename=commands[1];
+        char data[10];
+        bzero(data,10);
+     
+        
+        
+        
+        //GETTING SIZE OF FILE 
+        FILE *p_file = NULL;
+        p_file = fopen(filename.c_str(),"rb");
+        if(p_file == NULL)
+        {
+        printf("ERROR: File  not found.\n");
+        exit(1);
+        }
+        
+        fseek(p_file,0,SEEK_END);
+        int size = ftell(p_file);
+        fclose(p_file);
+        cout<<"The size of the file is "<<size<<endl;
+        
+        
+        
+        //SENDING FILE AS A STREAM
+        ifstream  inFile(filename);
+        while (inFile.read (data, 10)) 
+        {
+        send(sockfd, (char*)&data, strlen(data), 0);
+        cout<<data;
+        } 
+        send(sockfd, (char*)&data, strlen(data), 0);
+        cout<<data;
+        inFile.close();
+        
+        string response_string = "File sent";
+        responseV.push_back(response_string);
+        return responseV ;
+
+        }
+
     if(commands[0]=="login"){;}
     if(commands[0]=="create_group"){;}
     if(commands[0]=="join_group"){;}
     if(commands[0]=="requests"){;}
     if(commands[0]=="accept_request"){;}
-    if(commands[0]=="upload_file"){;}
-    if(commands[0]=="download_file"){;}
+    
+    
    // if(commands[0]=="logout"){;}
     if(commands[0]=="show_downloads"){;}
-
+   
 }
 
 void *readAndwrite(void* new_socket_passed)
@@ -121,7 +165,7 @@ void *readAndwrite(void* new_socket_passed)
     int valread;
     char *ACK = "SERVER ACK ";
     vector<string> commands;
-    vector<string> alphonso_responses;
+    vector<string> responses;
     
     
       while(1)
@@ -135,36 +179,30 @@ void *readAndwrite(void* new_socket_passed)
             cout << "Client has quit the session " << endl;
             break;
         }
-        /*
-        DO ALL STRING COMPARISIONS OVER HERE
-        */
+        
         cout << "Client: " << readbuffer << endl;
         cout << ">";
 
        string bufferString(readbuffer);
-       convertStringToCommands(bufferString,new_socket);
+       commands = convertStringToCommands(bufferString);
+       responses = extecuteCommands(commands,new_socket);
        
-       cout<<"response is "<<endl;
-       for(int k=0;k<alphonso_responses.size();k++)
-       {
-           cout<<alphonso_responses[k];
-       }
+       string response_string ="";
+       for(int k=0;k<responses.size();k++)
+        {
+            response_string+=responses[k];
+        }
         
         
-       /*
+       
         memset(&writebuffer, 0, sizeof(writebuffer)); //clear the buffer
         strcpy(writebuffer, response_string.c_str());
-        if(response_string == "exit")
-        {
-            //send to the client that server has closed the connection
-            printf("Sending data to %d \n",new_socket);
-            send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
-            break;
-        }
-        //send the message to client
+
+        if(response_string == "exit"){printf("Sending data to %d \n",new_socket);send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);break;}
+        
         printf("Sending data to %d \n",new_socket);
         bytes_written += send(new_socket, (char*)&writebuffer, strlen(writebuffer), 0);
-        */
+        
     }
         printf("Exiting the loop ");
         return NULL;
