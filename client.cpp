@@ -23,13 +23,16 @@
 using namespace std;
 
 string trackerip = "127.0.0.1";
-int tracker_port;
+//int tracker_port;
 string self_ip = "127.0.0.1";
 
 int MY_PORT;
 int SERVER_PORT;
-string self_gid;
+string g_id;
 string self_cid;
+string u_name;
+string u_password;
+
 void *readAndwrite(void *new_socket_passed);
 
 void *readAndwrite(void *new_socket_passed)
@@ -179,6 +182,8 @@ int main(int argc, char const *argv[])
     char sending_buffer[1500];
     char receiving_buffer[1500];
 
+    
+
     pthread_t listenerThreadid;
     pthread_create(&listenerThreadid, NULL, clientAsServer, NULL);
 
@@ -229,15 +234,24 @@ int main(int argc, char const *argv[])
 
         
 
-        memset(&sending_buffer, 0, sizeof(sending_buffer)); //clear the buffer
-        strcpy(sending_buffer, inputToSend.c_str());
+        
         if (commands[0] == "create_user")
         {
-            send(sock, (char *)&sending_buffer, strlen(sending_buffer), 0);
+            string all_user_details = inputToSend+" "+my_port;
+            memset(&sending_buffer, 0, sizeof(sending_buffer)); //clear the buffer
+            strcpy(sending_buffer, all_user_details.c_str());
+            
+            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
+            
+            u_name = commands[1];
+            u_password = commands[2];
         }
+
 
         else if (commands[0] == "download_file")
         {
+            memset(&sending_buffer, 0, sizeof(sending_buffer)); //clear the buffer
+            strcpy(sending_buffer, inputToSend.c_str());
             send(sock, (char *)&sending_buffer, strlen(sending_buffer), 0);
             
 
@@ -261,7 +275,10 @@ int main(int argc, char const *argv[])
 
         else if(commands[0] == "upload_file")
         {
-            
+            //get file path also
+
+            memset(&sending_buffer, 0, sizeof(sending_buffer)); //clear the buffer
+            strcpy(sending_buffer, inputToSend.c_str());
             cout<<"CP1"<<endl;
             send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
             string s1(sending_buffer);
@@ -271,11 +288,8 @@ int main(int argc, char const *argv[])
             
             memset(&receiving_buffer,0,sizeof(receiving_buffer));
             cout<<"CP2"<<endl;
-            
-            
             recv(sock, (char *)&receiving_buffer, sizeof(receiving_buffer), 0);
-            cout<<"CP2 rb is "<<receiving_buffer<<flush;
-            cout<<"ACK 1 is "<<receiving_buffer<<flush<<"\n";
+            cout<<"ACK 1 is "<<receiving_buffer<<flush<<"\n";//receives ack
 
             FILE *p_file = NULL;
             string filename = commands[1];
@@ -306,16 +320,34 @@ int main(int argc, char const *argv[])
         }
 
 
+        else if(commands[0] == "create_group")
+        {
+            string all_group_details = inputToSend+" "+u_name;
+            memset(&sending_buffer, 0, sizeof(sending_buffer)); //clear the buffer
+            strcpy(sending_buffer, all_group_details.c_str());
+            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
+            
+            
+            
+        }
+         else if(commands[0] == "list_groups")
+        {
+            
+            memset(&sending_buffer, 0, sizeof(sending_buffer)); //clear the buffer
+            strcpy(sending_buffer, inputToSend.c_str());
+            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
+            
+            
+            
+        }
+
+
         /*if(inputToSend == "download_file")
         {
             send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
             
         }
-        if(inputToSend == "upload_file")
-        {
-            send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
-            
-        }
+        
         if(inputToSend == "create_user")
         {
             send(sock , (char*)&sending_buffer, strlen(sending_buffer), 0);
@@ -344,3 +376,27 @@ int main(int argc, char const *argv[])
 
     return 0;
 }
+/*
+Client:
+a. Run Client: ./client <IP>:<PORT> tracker_info.txt
+tracker_info.txt - Contains ip, port details of all the trackers
+//b. Create User Account: create_user <user_id> <passwd>
+c. Login: login <user_id> <passwd>
+d. Create Group: create_group <group_id>
+e. Join Group: join_group <group_id>
+f. Leave Group: leave_group <group_id>
+g. List pending join: requests list_requests <group_id>
+h. Accept Group Joining Request: accept_request <group_id> <user_id>
+i. List All Group In Network: list_groups
+j. List All sharable Files In Group: list_files <group_id>
+k. Upload File: upload_file <file_path> <group_id>
+l. Download File: download_file <group_id> <file_name> <destination_path>
+m. Logout: logout
+n. Show_downloads: show_downloads
+Output format:
+[D] [grp_id] filename
+[C] [grp_id] filename
+D(Downloading), C(Complete)
+o. Stop sharing: stop_share <group_id> <file_name>
+
+*/

@@ -33,20 +33,31 @@ class Trackeruserinfo
 public:
 	string  username;
 	string  password;
-	string ip;
 	string port;
+    int loggedin;
 };
 
 class Trackerfileinfo
 {
 public:
 	vector<string> sha1;
+    vector<Trackeruserinfo*> uploaders;
 	int size;
     int chunks;
     string name;
+    string path;
 };
-
-
+class Trackergroupinfo
+{
+public:
+    string gid;
+    string admin;
+    vector<Trackerfileinfo*> files;
+    vector<Trackeruserinfo*> members;
+};
+vector<Trackeruserinfo> users;
+vector<Trackergroupinfo> groups;
+vector<Trackerfileinfo> files;
 //unordered_map<UserInfo, fileinfo> user_password;//check this
 void *readAndwrite(void* new_socket_passed);
 vector<string> extecuteCommands(vector<string> commands,int sockfd);
@@ -91,6 +102,14 @@ vector<string> extecuteCommands(vector<string> commands,int sockfd)
     
     if(commands[0]=="create_user")
     {
+        char data[100];
+        bzero(data,100);
+
+        Trackeruserinfo* uinfo = new Trackeruserinfo();
+        uinfo->username = commands [1];
+        uinfo->password = commands[2];
+        uinfo->port = commands[3];
+        users.push_back(*uinfo);
         string response_string = "created user";
         responseV.push_back(response_string);
         cout<<"responseV is "<<responseV[0];
@@ -137,8 +156,8 @@ vector<string> extecuteCommands(vector<string> commands,int sockfd)
     if(commands[0]=="download_file")
     {
         string filename=commands[1];
-        char data[10];
-        bzero(data,10);
+        char data[100];
+        bzero(data,100);
      
         
         
@@ -176,8 +195,35 @@ vector<string> extecuteCommands(vector<string> commands,int sockfd)
 
         }
 
+        if(commands[0]=="create_group")
+        {
+            string tempgid = commands[1];
+            Trackergroupinfo * ginfo = new Trackergroupinfo();
+            ginfo->gid = commands[1];
+            ginfo->admin = commands[2]; 
+            groups.push_back(*ginfo);
+            string response_string = "Group created";
+            responseV.push_back(response_string);
+            return responseV ;
+        }
+        if(commands[0]=="list_groups")
+        {
+            for(int i=0;i<groups.size();i++)
+            {
+                Trackergroupinfo  tempfinfo = groups[i];
+                cout<<"Gid is "<<tempfinfo.gid<<endl;
+                cout<<"Admin is "<<tempfinfo.admin<<endl;
+            }
+            
+           
+            
+            string response_string = "Listed here";
+            responseV.push_back(response_string);
+            return responseV ;
+        }
+
     if(commands[0]=="login"){;}
-    if(commands[0]=="create_group"){;}
+    
     if(commands[0]=="join_group"){;}
     if(commands[0]=="requests"){;}
     if(commands[0]=="accept_request"){;}
