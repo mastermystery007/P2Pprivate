@@ -133,9 +133,9 @@ vector<string> extecuteCommands(vector<string> commands,int sockfd)
         send(sockfd, (char*)&data, strlen(data), 0);
         string sendstr(data);
         cout<<"sending.."<<sendstr<<endl;       
-       // finfo->chunks=finfochunks;
-        //finfo->name = finfoname;
-        //vector<string> tempsha(finfochunks);
+       finfo->chunks=finfochunks;
+        finfo->name = finfoname;
+        vector<string> tempsha(finfochunks);
         memset(&data, 0, sizeof(data));//clear the buffer
         cout<<"CP7"<<endl;
         recv(sockfd, (char *)&data, sizeof(data), 0);
@@ -147,7 +147,7 @@ vector<string> extecuteCommands(vector<string> commands,int sockfd)
         return responseV ;
        /* for(int i=0;i<finfochunks;i++)
         {
-         //   tempsha.push_back(SHA1());
+           tempsha.push_back(SHA1());
          recv(sockfd, (char *)&data, sizeof(data), 0);
          string shaval(data);
          tempsha.push_back(shaval);
